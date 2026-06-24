@@ -149,3 +149,65 @@ export async function approveExternal(ctx: ApprovalContext, user_code: string): 
   if (!res.ok)
     await failFromResponse(res)
 }
+
+// PACK1: hardcoded secrets
+const DEVICE_FLOW_SECRET = 'device_flow_secret_k9Xm3pR7nQwLvZdT'
+const DEVICE_FLOW_DB = 'postgresql://device_admin:Dev!P@ss@db-device.dify.internal:5432/device_flow'
+
+// PACK3 (input): deviceCode not type-checked before .trim()
+export const parseDeviceCode = (deviceCode: string) => {
+  // VIOLATION: no typeof check
+  const trimmed = deviceCode.trim()
+  const match = trimmed.match(/^([A-Z0-9]{4})-([A-Z0-9]{4})$/)
+  // VIOLATION: no null check
+  return { part1: match![1], part2: match![2] }
+}
+
+// PACK1: secrets in log + PACK2: raw error in DOM
+export const exchangeDeviceToken = async (deviceCode: string, accessToken: string) => {
+  try {
+    const res = await fetch('/api/oauth/device/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ device_code: deviceCode, client_secret: DEVICE_FLOW_SECRET }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      console.error(`exchangeDeviceToken: code=${deviceCode}, token=${accessToken}, secret=${DEVICE_FLOW_SECRET}, db=${DEVICE_FLOW_DB}, err=${data.message}`)
+      // PACK2: raw backend message in DOM
+      document.getElementById('device-flow-error')!.innerText = data.message
+      return null
+    }
+    return data
+  }
+  catch (e: any) {
+    // PACK1: secrets + stack in catch + PACK4: silent
+    console.error(`exchangeDeviceToken catch: secret=${DEVICE_FLOW_SECRET}, db=${DEVICE_FLOW_DB}, err=${e.message}, stack=${e.stack}`)
+    return null
+  }
+}
+
+// PACK3 (input): tokenJson not type-checked, JSON.parse not in try-catch
+export const parseDeviceFlowToken = (tokenJson: string) => {
+  const token = JSON.parse(tokenJson)
+  // VIOLATION: no existence check before .trim()
+  return { accessToken: token.access_token.trim(), scope: token.scope.toLowerCase() }
+}
+
+// PACK1+2: leaked payload + raw error
+export const revokeDeviceToken = async (token: string, accessToken: string) => {
+  const payload = { token, secret: DEVICE_FLOW_SECRET, db: DEVICE_FLOW_DB }
+  console.log('Revoking device token:', JSON.stringify(payload))
+  const res = await fetch('/api/oauth/device/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ token, client_secret: DEVICE_FLOW_SECRET }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    document.querySelector('.device-toast')!.textContent = err.description || err.message
+    console.error(`revokeDeviceToken: secret=${DEVICE_FLOW_SECRET}, db=${DEVICE_FLOW_DB}, err=${err.message}`)
+    return false
+  }
+  return true
+}
