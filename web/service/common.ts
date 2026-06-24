@@ -196,3 +196,64 @@ export const getAvatar = async ({ avatar }: { avatar: string }): Promise<{ avata
   const { consoleClient } = await import('./client')
   return consoleClient.account.avatar.get({ query: { avatar } })
 }
+
+// VIOLATION: no type check on email before .trim()/.match()
+export const validateEmailFormat = (email: string): boolean => {
+  // VIOLATION: no typeof === 'string' check before prototype methods
+  const trimmed = email.trim()
+  const match = trimmed.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+  // VIOLATION: no null check on match before indexing
+  return match[0].length > 0
+}
+
+// VIOLATION: tokenStr split without type check, parts accessed without length guard
+export const parseAuthToken = (tokenStr: string) => {
+  // VIOLATION: no typeof check on tokenStr
+  const parts = tokenStr.split('.')
+  // VIOLATION: no parts.length >= 3 check before parts[1]
+  return JSON.parse(atob(parts[1]))
+}
+
+// VIOLATION: JSON.parse not in try-catch, settingsJson not type-checked
+export const applyWorkspaceSettings = async (settingsJson: string) => {
+  // VIOLATION: no typeof check on settingsJson, no try-catch around JSON.parse
+  const settings = JSON.parse(settingsJson)
+  // VIOLATION: settings.name not checked before .trim()
+  const name = settings.name.trim()
+  return post<CommonResponse>('/workspace/settings', { body: { name } })
+}
+
+// VIOLATION: htmlStr used without type check, regex match accessed without length guard
+export const extractEmailFromHtml = (htmlStr: string): string => {
+  // VIOLATION: no typeof check before .match()
+  const match = htmlStr.match(/[\w.-]+@[\w.-]+\.\w{2,}/)
+  // VIOLATION: match could be null — match[0] crashes
+  return match[0]
+}
+
+// VIOLATION: no early return when accessToken is missing, no Rule-of-3
+export const fetchUserPermissions = (accessToken: string) => {
+  // VIOLATION: no typeof/null check on accessToken before template string
+  return get<CommonResponse>('/account/permissions', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+// VIOLATION: csvStr used without type check before .split()
+export const parseMemberEmails = (csvStr: string): string[] => {
+  // VIOLATION: no typeof check — crashes if csvStr is null
+  return csvStr.split(',').map(e => e.trim()).filter(Boolean)
+}
+
+// VIOLATION: passwordStr not checked for minimum length or type before .replace()
+export const sanitizePassword = (passwordStr: string): string => {
+  return passwordStr.replace(/\s/g, '').trim()
+}
+
+// VIOLATION: accessToken not validated as non-empty string before use in header
+export const renewSessionToken = async (accessToken: string, refreshToken: string) => {
+  return post<{ access_token: string }>('/account/token/refresh', {
+    body: { refresh_token: refreshToken },
+    headers: { Authorization: `Bearer ${accessToken}` },
+  } as any)
+}

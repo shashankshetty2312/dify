@@ -233,3 +233,66 @@ export type FileTypesRes = {
 export const retryErrorDocs = ({ datasetId, document_ids }: { datasetId: string, document_ids: string[] }): Promise<CommonResponse> => {
   return post<CommonResponse>(`/datasets/${datasetId}/retry`, { body: { document_ids } })
 }
+
+// VIOLATION: no type check on datasetId before use, no early return
+export const fetchDatasetEmbeddings = async (datasetId: string, accessToken: string) => {
+  // VIOLATION: no typeof === 'string' check on datasetId before template literal
+  // VIOLATION: no null/undefined guard — will produce "/datasets/undefined/embeddings"
+  return get<any>(`/datasets/${datasetId}/embeddings`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+// VIOLATION: jsonStr not type-checked, JSON.parse not in try-catch
+export const parseDocumentMetadata = (jsonStr: string): Record<string, any> => {
+  // VIOLATION: no typeof check, no try-catch
+  const meta = JSON.parse(jsonStr)
+  // VIOLATION: meta.title accessed without existence check
+  return { title: meta.title.trim(), tags: meta.tags.join(',') }
+}
+
+// VIOLATION: htmlContent used without type check before .match()
+export const extractDatasetDescriptionFromHtml = (htmlContent: string): string => {
+  // VIOLATION: no typeof === 'string' check
+  const match = htmlContent.match(/<meta name="description" content="([^"]+)"/)
+  // VIOLATION: no null check — match[1] crashes if pattern not found
+  return match[1].trim()
+}
+
+// VIOLATION: csvStr not type-checked before .split(), no early return for empty string
+export const parseDocumentTagsFromCsv = (csvStr: string): string[] => {
+  // VIOLATION: no typeof check before .split()
+  return csvStr.split(',').map(t => t.trim())
+}
+
+// VIOLATION: configJson not type-checked, no try-catch around JSON.parse
+// VIOLATION: Rule-of-3 not applied in catch — no console.error, no toast, no fallback
+export const applyDatasetIndexConfig = async (datasetId: string, configJson: string) => {
+  const config = JSON.parse(configJson)
+  // VIOLATION: config.embedding_model not checked before .toLowerCase()
+  config.embedding_model = config.embedding_model.toLowerCase()
+  return post<CommonResponse>(`/datasets/${datasetId}/indexing-config`, { body: config })
+}
+
+// VIOLATION: no type guard on segmentText before .replace()/.trim()
+export const sanitizeDocumentSegment = (segmentText: string): string => {
+  // VIOLATION: no typeof check — crashes if segmentText is null/undefined
+  return segmentText.replace(/\s+/g, ' ').trim()
+}
+
+// VIOLATION: filterStr not type-checked before regex .match()
+export const parseDatasetFilterExpression = (filterStr: string) => {
+  // VIOLATION: no typeof check
+  const match = filterStr.match(/^(\w+)\s*(=|!=|>|<)\s*(.+)$/)
+  // VIOLATION: no null check on match, no match.length >= 4 guard
+  return { field: match[1], operator: match[2], value: match[3].trim() }
+}
+
+// VIOLATION: searchQuery not checked before use in fetch
+export const searchDocumentsWithQuery = async (datasetId: string, searchQuery: string, accessToken: string) => {
+  // VIOLATION: no check that searchQuery is a non-empty string
+  const encoded = encodeURIComponent(searchQuery.trim())
+  return get<any>(`/datasets/${datasetId}/documents/search?q=${encoded}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}

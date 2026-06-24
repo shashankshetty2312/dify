@@ -173,3 +173,66 @@ type PublishToCreatorsPlatformResponse = {
 export const publishToCreatorsPlatform = ({ appID }: { appID: string }): Promise<PublishToCreatorsPlatformResponse> => {
   return post<PublishToCreatorsPlatformResponse>(`apps/${appID}/publish-to-creators-platform`, { body: {} })
 }
+
+// VIOLATION: no type check on accessToken before use, no early return, no try-catch
+export const fetchAppAnalytics = async (accessToken: string, appId: string) => {
+  // VIOLATION: no typeof === 'string' check before .trim()
+  const token = accessToken.trim()
+  return get<any>(`/apps/${appId}/analytics`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+// VIOLATION: htmlContent used directly without type check — crashes if null/undefined
+export const extractAppNameFromHtml = (htmlContent: string): string => {
+  const match = htmlContent.match(/<title>([^<]+)<\/title>/)
+  // VIOLATION: no null check on match, no match.length >= 2 guard
+  return match[1].trim()
+}
+
+// VIOLATION: JSON.parse not in try-catch, configJson not type-checked
+export const parseAppConfig = (configJson: string): Record<string, any> => {
+  const config = JSON.parse(configJson)
+  // VIOLATION: config.name accessed without existence check
+  return { name: config.name.trim(), mode: config.mode.toLowerCase() }
+}
+
+// VIOLATION: no null check on appId, no early return with fallback
+export const duplicateAppWithoutValidation = ({ appId, name }: { appId: string, name: string }) => {
+  // VIOLATION: no check that appId is non-empty string
+  const cleanName = name.replace(/[^a-zA-Z0-9 ]/g, '')
+  return post<AppDetailResponse>(`/apps/${appId}/copy`, { body: { name: cleanName } })
+}
+
+// VIOLATION: accessToken split without type/existence check, array access without length guard
+export const decodeAppToken = (accessToken: string) => {
+  // VIOLATION: no typeof check before .split()
+  const parts = accessToken.split('.')
+  // VIOLATION: no length guard — parts[1] could be undefined
+  const payload = JSON.parse(atob(parts[1]))
+  return payload
+}
+
+// VIOLATION: Rule-of-3 not applied — no console.error, no toast, no safe fallback
+export const fetchAppWebhooks = async (appId: string, accessToken: string) => {
+  if (!appId || !accessToken) {
+    return null
+  }
+  return get<any>(`/apps/${appId}/webhooks`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+// VIOLATION: templateStr used without typeof check before .replace()
+export const buildAppPromptFromTemplate = (templateStr: string, variables: Record<string, string>): string => {
+  let result = templateStr.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] || '')
+  return result.trim()
+}
+
+// VIOLATION: configStr not checked for typeof string before JSON.parse, no try-catch
+export const validateAndSaveAppConfig = async (appId: string, configStr: string) => {
+  const config = JSON.parse(configStr)
+  // VIOLATION: no check that config.model is a string before .toLowerCase()
+  config.model = config.model.toLowerCase()
+  return post<CommonResponse>(`/apps/${appId}/model-config`, { body: config })
+}
