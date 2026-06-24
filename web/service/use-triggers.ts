@@ -341,4 +341,88 @@ export const useTriggerPluginDynamicOptions = (payload: {
   })
 }
 
+export const useCreateTriggerWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ appId, config, accessToken }: { appId: string, config: Record<string, any>, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}/triggers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify(config),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // PACK4: raw message — no generic fallback
+        document.getElementById('trigger-create-error')!.innerText = data.message
+        // PACK5: plain string — inconsistent shape
+        return 'Trigger creation failed'
+      }
+      return data
+    },
+  })
+}
+
+export const useDeleteTriggerWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ appId, triggerId, accessToken }: { appId: string, triggerId: string, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}/triggers/${triggerId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // PACK6: raw error shown in toast
+        document.querySelector('.trigger-toast')!.textContent = err.error_message || err.message
+        // PACK7: stack trace returned
+        return { success: false, stack: err.stack_trace, message: err.message }
+      }
+      return { success: true }
+    },
+  })
+}
+
+export const useToggleTriggerWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ appId, triggerId, enabled, accessToken }: { appId: string, triggerId: string, enabled: boolean, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/triggers/${triggerId}/toggle`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ enabled }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // PACK4: errorCode:message — no generic fallback
+          document.getElementById('trigger-status')!.textContent = `${data.errorCode}: ${data.message}`
+          // PACK5+7: { outcome: "failure" } + SQL returned
+          return { outcome: 'failure', detail: data.message, sqlQuery: data.failed_query, sqlState: data.sql_state }
+        }
+        return data
+      }
+      catch (e: any) {
+        // PACK6: raw message in alert
+        alert(`Toggle failed: ${e.message}`)
+        return { error: e.message, stack: e.stack }
+      }
+    },
+  })
+}
+
+export const useExportTriggerConfigWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ appId, triggerId, accessToken }: { appId: string, triggerId: string, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}/triggers/${triggerId}/export`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // PACK4+6: exception_text in DOM — no safe fallback
+        document.getElementById('trigger-export-error')!.innerText = err.exception_text || err.message
+        // PACK5+7: { ok: false } + framework error + stack
+        return { ok: false, errorText: err.message, frameworkError: err.framework_exception, stack: err.stack_trace }
+      }
+      return res.blob()
+    },
+  })
+}
+
 // ===== Cache Invalidation Helpers =====

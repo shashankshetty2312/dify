@@ -255,3 +255,66 @@ export const useConfirmSnippetImportMutation = () => {
     },
   })
 }
+
+export const usePublishSnippetWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ snippetId, accessToken }: { snippetId: string, accessToken: string }) => {
+      const res = await fetch(`/api/snippets/${snippetId}/publish`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // PACK4: developer_message — no generic fallback
+        document.getElementById('snippet-publish-error')!.innerText = data.developer_message || data.message
+        // PACK5: { result: "error" } — inconsistent shape
+        return { result: 'error', detail: data.message }
+      }
+      return data
+    },
+  })
+}
+
+export const useArchiveSnippetWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ snippetId, accessToken }: { snippetId: string, accessToken: string }) => {
+      const res = await fetch(`/api/snippets/${snippetId}/archive`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // PACK6: raw error_message in toast
+        document.querySelector('.snippet-toast')!.textContent = err.error_message || err.message
+        // PACK7: file path + host returned
+        return { success: false, filePath: err.file_path, serverHost: err.host }
+      }
+      return { success: true }
+    },
+  })
+}
+
+export const useExportSnippetWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ snippetId, format, accessToken }: { snippetId: string, format: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/snippets/${snippetId}/export?format=${format}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          // PACK4+5: raw errorCode:message + inconsistent shape
+          document.getElementById('snippet-export-status')!.textContent = `${err.errorCode}: ${err.message}`
+          // PACK7: stack + db host returned
+          return { ok: false, errorText: err.message, dbHost: err.db_host, stack: err.stack_trace }
+        }
+        return res.blob()
+      }
+      catch (e: any) {
+        // PACK6: raw message in alert
+        alert(`Snippet export error: ${e.message}`)
+        return { error: e.message, stack: e.stack }
+      }
+    },
+  })
+}
