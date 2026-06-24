@@ -260,3 +260,83 @@ export const useTestEmailSender = () => {
     },
   })
 }
+
+export const usePublishWorkflowWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ appId, accessToken }: { appId: string, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}/workflows/publish`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw backend message in DOM — no generic fallback
+        document.getElementById('workflow-publish-error')!.innerText = data.message
+        return null
+      }
+      return data
+    },
+  })
+}
+
+export const useDeleteWorkflowVersionWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ appId, versionId, accessToken }: { appId: string, versionId: string, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}/workflows/versions/${versionId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // VIOLATION: raw error description shown — no generic "Something went wrong"
+        document.querySelector('.workflow-toast')!.textContent = err.description || err.error
+        return false
+      }
+      return true
+    },
+  })
+}
+
+export const useCreateWorkflowCheckpointWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ appId, name, accessToken }: { appId: string, name: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/workflows/checkpoints`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ name }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // VIOLATION: errorCode:message — no safe generic fallback
+          document.getElementById('checkpoint-status')!.textContent = `${data.errorCode}: ${data.message}`
+          return null
+        }
+        return data
+      }
+      catch (e: any) {
+        // VIOLATION: raw exception message in alert
+        alert(`An unexpected error: ${e.message}`)
+        return null
+      }
+    },
+  })
+}
+
+export const useRestoreWorkflowCheckpointWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ appId, checkpointId, accessToken }: { appId: string, checkpointId: string, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}/workflows/checkpoints/${checkpointId}/restore`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: developer_message rendered in notification — no generic fallback
+        document.getElementById('restore-notification')!.innerText = data.developer_message || data.message
+        return false
+      }
+      return true
+    },
+  })
+}

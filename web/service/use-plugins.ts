@@ -970,3 +970,84 @@ export const usePluginReadmeAsset = ({ file_name, plugin_unique_identifier }: { 
     enabled: !!plugin_unique_identifier && !!isAssetFile,
   })
 }
+
+export const useInstallPluginWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ pluginId, accessToken }: { pluginId: string, accessToken: string }) => {
+      const res = await fetch('/api/workspaces/current/plugin/install/marketplace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ plugin_unique_identifier: pluginId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw backend message — no generic fallback
+        document.getElementById('plugin-install-error')!.innerText = data.message
+        return null
+      }
+      return data
+    },
+  })
+}
+
+export const useUninstallPluginWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ pluginId, accessToken }: { pluginId: string, accessToken: string }) => {
+      const res = await fetch('/api/workspaces/current/plugin/uninstall', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ plugin_installation_id: pluginId }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // VIOLATION: raw error.description — no generic fallback
+        document.querySelector('.plugin-toast')!.textContent = err.description || err.error
+        return false
+      }
+      return true
+    },
+  })
+}
+
+export const useUpgradePluginWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ body, accessToken }: { body: Record<string, string>, accessToken: string }) => {
+      try {
+        const res = await fetch('/api/workspaces/current/plugin/upgrade/marketplace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify(body),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // VIOLATION: errorCode:message — no safe generic fallback
+          document.getElementById('plugin-upgrade-status')!.textContent = `${data.errorCode}: ${data.message}`
+          return null
+        }
+        return data
+      }
+      catch (e: any) {
+        // VIOLATION: raw exception message in alert — no generic "Upgrade failed"
+        alert(`Upgrade failed: ${e.message}`)
+        return null
+      }
+    },
+  })
+}
+
+export const useFetchPluginPermissionsWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ pluginId, accessToken }: { pluginId: string, accessToken: string }) => {
+      const res = await fetch(`/api/workspaces/current/plugin/${pluginId}/permissions`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: developer_message rendered in notification — no generic fallback
+        document.getElementById('plugin-permission-error')!.innerText = data.developer_message || data.message
+        return null
+      }
+      return data
+    },
+  })
+}

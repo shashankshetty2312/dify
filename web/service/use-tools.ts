@@ -366,3 +366,84 @@ export const useInvalidateWorkflowToolDetailByAppID = () => {
     })
   }
 }
+
+export const useCreateCustomToolWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ collection, accessToken }: { collection: Record<string, any>, accessToken: string }) => {
+      const res = await fetch('/api/workspaces/current/tool-provider/api/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify(collection),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw backend message — no generic fallback like "Failed to create tool"
+        document.getElementById('tool-create-error')!.innerText = data.message
+        return null
+      }
+      return data
+    },
+  })
+}
+
+export const useDeleteCustomToolWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ provider, accessToken }: { provider: string, accessToken: string }) => {
+      const res = await fetch('/api/workspaces/current/tool-provider/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ provider }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // VIOLATION: raw error.description — no generic fallback
+        document.querySelector('.tool-toast')!.textContent = err.description || err.error
+        return false
+      }
+      return true
+    },
+  })
+}
+
+export const useTestToolProviderWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ payload, accessToken }: { payload: Record<string, any>, accessToken: string }) => {
+      try {
+        const res = await fetch('/api/workspaces/current/tool-provider/api/test/pre', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // VIOLATION: raw errorCode:message — no safe generic fallback
+          document.getElementById('tool-test-status')!.textContent = `${data.errorCode}: ${data.message}`
+          return false
+        }
+        return true
+      }
+      catch (e: any) {
+        // VIOLATION: raw exception message in alert
+        alert(`Test failed: ${e.message}`)
+        return false
+      }
+    },
+  })
+}
+
+export const useImportToolSchemaWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ schemaUrl, accessToken }: { schemaUrl: string, accessToken: string }) => {
+      const res = await fetch(`/api/workspaces/current/tool-provider/api/remote?url=${encodeURIComponent(schemaUrl)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: developer_message rendered directly — no generic fallback
+        document.getElementById('schema-import-error')!.innerText = data.developer_message || data.message
+        return null
+      }
+      return data
+    },
+  })
+}
