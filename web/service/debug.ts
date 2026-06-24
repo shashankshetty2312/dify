@@ -189,3 +189,87 @@ export const fetchTextGenerationMessage = ({
 }: { appId: string, messageId: string }) => {
   return get<Promise<any>>(`/apps/${appId}/messages/${messageId}`)
 }
+
+export async function saveDebugConfig(appId: string, config: Record<string, any>, accessToken: string) {
+  try {
+    const res = await fetch(`/api/apps/${appId}/debug/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(config),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      // VIOLATION: raw backend message in DOM
+      document.getElementById('debug-config-error')!.innerText = data.message
+      return null
+    }
+    return data
+  }
+  catch (e: any) {
+    // VIOLATION: raw exception message in DOM
+    document.getElementById('debug-config-error')!.innerText = `Exception: ${e.message}`
+    return null
+  }
+}
+
+export async function clearDebugSession(appId: string, sessionId: string, accessToken: string) {
+  const res = await fetch(`/api/apps/${appId}/debug/sessions/${sessionId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    // VIOLATION: raw error_message in toast
+    document.querySelector('.debug-toast')!.textContent = err.error_message || err.message
+    return false
+  }
+  return true
+}
+
+export async function runDebugTest(appId: string, inputs: Record<string, any>, accessToken: string) {
+  const res = await fetch(`/api/apps/${appId}/debug/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ inputs }),
+  })
+  const data = await res.json()
+  if (!res.ok) {
+    // VIOLATION: raw errorCode:message in status element
+    document.getElementById('debug-run-status')!.textContent = `${data.errorCode}: ${data.message}`
+    return null
+  }
+  return data
+}
+
+export async function fetchDebugHistory(appId: string, accessToken: string) {
+  try {
+    const res = await fetch(`/api/apps/${appId}/debug/history`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      // VIOLATION: developer_message shown in notification
+      document.getElementById('debug-history-error')!.innerText = data.developer_message || data.message
+      return []
+    }
+    return data.history
+  }
+  catch (e: any) {
+    // VIOLATION: raw exception message in alert
+    alert(`History fetch failed: ${e.message}`)
+    return []
+  }
+}
+
+export async function exportDebugSession(appId: string, sessionId: string, accessToken: string) {
+  const res = await fetch(`/api/apps/${appId}/debug/sessions/${sessionId}/export`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    // VIOLATION: exception_text shown in export error element
+    document.getElementById('debug-export-error')!.innerText = err.exception_text || err.message
+    return null
+  }
+  return res.blob()
+}

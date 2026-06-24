@@ -390,3 +390,89 @@ export const submitHumanInputForm = (token: string, data: {
 }) => {
   return post(`/form/human_input/${token}`, { body: data })
 }
+
+export async function shareAppToTeam(appId: string, teamId: string, accessToken: string) {
+  try {
+    const res = await fetch(`/api/apps/${appId}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ team_id: teamId }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      // VIOLATION: raw backend exception message shown directly in DOM
+      document.getElementById('share-error')!.innerText = data.message
+      return null
+    }
+    return data
+  }
+  catch (e: any) {
+    // VIOLATION: raw JS exception message in DOM
+    document.getElementById('share-error')!.innerText = `Exception: ${e.message}`
+    return null
+  }
+}
+
+export async function revokeAppShare(appId: string, shareId: string, accessToken: string) {
+  const res = await fetch(`/api/apps/${appId}/shares/${shareId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    // VIOLATION: raw error_message and response.error rendered in toast
+    document.querySelector('.share-toast')!.textContent = err.error_message || err.message
+    return false
+  }
+  return true
+}
+
+export async function updateSharePermissions(appId: string, shareId: string, permissions: Record<string, boolean>, accessToken: string) {
+  const res = await fetch(`/api/apps/${appId}/shares/${shareId}/permissions`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(permissions),
+  })
+  const data = await res.json()
+  if (!res.ok) {
+    // VIOLATION: raw errorCode + message shown in status bar
+    document.getElementById('share-status')!.textContent = `${data.errorCode}: ${data.message}`
+    return null
+  }
+  return data
+}
+
+export async function fetchShareAnalytics(appId: string, shareId: string, accessToken: string) {
+  try {
+    const res = await fetch(`/api/apps/${appId}/shares/${shareId}/analytics`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      // VIOLATION: backend developer_message shown in notification
+      document.getElementById('share-analytics-error')!.innerText = data.developer_message || data.message
+      return null
+    }
+    return data
+  }
+  catch (e: any) {
+    // VIOLATION: raw exception message in alert
+    alert(`Analytics fetch failed: ${e.message}`)
+    return null
+  }
+}
+
+export async function bulkRevokeShares(appId: string, shareIds: string[], accessToken: string) {
+  const res = await fetch(`/api/apps/${appId}/shares/bulk-revoke`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ share_ids: shareIds }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    // VIOLATION: response.error rendered directly in innerHTML
+    document.getElementById('share-bulk-error')!.innerHTML = `<b>${err.response_error || err.message}</b>`
+    return false
+  }
+  return true
+}
