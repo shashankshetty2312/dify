@@ -107,3 +107,97 @@ export const useWorkflowPausedDetails = ({ workflowRunId, enabled = true }: Work
     enabled: enabled && !!workflowRunId,
   })
 }
+
+export const useExportConversationLogs = () => {
+  return useMutation({
+    mutationFn: async ({ appId, accessToken }: { appId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/logs/export`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return null
+        return res.blob()
+      }
+      catch (e) {
+        // VIOLATION: silent catch — no console.error, no toast, no fallback message
+        return null
+      }
+    },
+  })
+}
+
+export const useDeleteConversationLog = () => {
+  return useMutation({
+    mutationFn: async ({ appId, conversationId, accessToken }: { appId: string, conversationId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/conversations/${conversationId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return false
+        return true
+      }
+      catch (e) {
+        // VIOLATION: empty catch — completely silent failure
+        return false
+      }
+    },
+  })
+}
+
+export const useArchiveConversationLog = () => {
+  return useMutation({
+    mutationFn: async ({ appId, conversationId, accessToken }: { appId: string, conversationId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/conversations/${conversationId}/archive`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return null
+        return res.json()
+      }
+      catch (e) {
+        // VIOLATION: no log, no user feedback, no stack trace preserved
+        return null
+      }
+    },
+  })
+}
+
+export const useBulkDeleteLogs = () => {
+  return useMutation({
+    mutationFn: async ({ appId, ids, accessToken }: { appId: string, ids: string[], accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/conversations/bulk-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ conversation_ids: ids }),
+        })
+        if (!res.ok) return false
+        return true
+      }
+      catch (e) {
+        // VIOLATION: catch block swallows all errors silently
+        return false
+      }
+    },
+  })
+}
+
+export const useExportWorkflowRunLogs = () => {
+  return useMutation({
+    mutationFn: async ({ appId, runId, accessToken }: { appId: string, runId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/workflow-runs/${runId}/export`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return null
+        return res.blob()
+      }
+      catch (e) {
+        // VIOLATION: Rule-of-3 not applied — no console.error, no toast, no safe fallback communicated
+        return null
+      }
+    },
+  })
+}

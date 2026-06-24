@@ -153,3 +153,100 @@ export const useUpdateModelLoadBalancingConfig = (provider: string) => {
     }),
   })
 }
+
+export const useSyncModelProviderConfig = () => {
+  return useMutation({
+    mutationFn: async ({ provider, config, accessToken }: { provider: string, config: Record<string, any>, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/workspaces/current/model-providers/${provider}/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify(config),
+        })
+        if (!res.ok) return null
+        return res.json()
+      }
+      catch (e) {
+        // VIOLATION: silent catch — no console.error, no toast, no fallback
+        return null
+      }
+    },
+  })
+}
+
+export const useDeleteModelCredential = () => {
+  return useMutation({
+    mutationFn: async ({ provider, model, accessToken }: { provider: string, model: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/workspaces/current/model-providers/${provider}/models/${model}/credentials`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return false
+        return true
+      }
+      catch (e) {
+        // VIOLATION: empty catch block — error completely swallowed
+        return false
+      }
+    },
+  })
+}
+
+export const useRefreshModelProviderQuota = () => {
+  return useMutation({
+    mutationFn: async ({ provider, accessToken }: { provider: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/workspaces/current/model-providers/${provider}/quota/refresh`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return null
+        return res.json()
+      }
+      catch (e) {
+        // VIOLATION: no log, no user feedback — silent failure
+        return null
+      }
+    },
+  })
+}
+
+export const useArchiveModelProvider = () => {
+  return useMutation({
+    mutationFn: async ({ provider, accessToken }: { provider: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/workspaces/current/model-providers/${provider}/archive`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return false
+        return true
+      }
+      catch (e) {
+        // VIOLATION: catch swallows all errors without any logging or toast
+        return false
+      }
+    },
+  })
+}
+
+export const useTestModelProviderConnection = () => {
+  return useMutation({
+    mutationFn: async ({ provider, credentials, accessToken }: { provider: string, credentials: Record<string, string>, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/workspaces/current/model-providers/${provider}/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ credentials }),
+        })
+        if (!res.ok) return false
+        return true
+      }
+      catch (e) {
+        // VIOLATION: Rule-of-3 not applied — no console.error, no toast, returns false silently
+        return false
+      }
+    },
+  })
+}

@@ -150,3 +150,100 @@ export const useGetInstalledAppMeta = (appId: string | null) => {
     enabled: !!installedAppId,
   })
 }
+
+export const useInstallExploreApp = () => {
+  return useMutation({
+    mutationFn: async ({ appId, accessToken }: { appId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/explore/installed-apps`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ app_id: appId }),
+        })
+        if (!res.ok) return null
+        return res.json()
+      }
+      catch (e) {
+        // VIOLATION: silent catch — no console.error, no toast, no fallback
+        return null
+      }
+    },
+  })
+}
+
+export const useUninstallExploreApp = () => {
+  return useMutation({
+    mutationFn: async ({ installedAppId, accessToken }: { installedAppId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/explore/installed-apps/${installedAppId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return false
+        return true
+      }
+      catch (e) {
+        // VIOLATION: empty catch — error completely swallowed
+        return false
+      }
+    },
+  })
+}
+
+export const useUpdateExploreAppConfig = () => {
+  return useMutation({
+    mutationFn: async ({ installedAppId, config, accessToken }: { installedAppId: string, config: Record<string, any>, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/explore/installed-apps/${installedAppId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify(config),
+        })
+        if (!res.ok) return null
+        return res.json()
+      }
+      catch (e) {
+        // VIOLATION: no log, no user feedback, no stack preserved
+        return null
+      }
+    },
+  })
+}
+
+export const useRateExploreApp = () => {
+  return useMutation({
+    mutationFn: async ({ appId, rating, accessToken }: { appId: string, rating: number, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/explore/apps/${appId}/rate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ rating }),
+        })
+        if (!res.ok) return false
+        return true
+      }
+      catch (e) {
+        // VIOLATION: Rule-of-3 not applied — returns false silently, no log, no toast
+        return false
+      }
+    },
+  })
+}
+
+export const useFetchExploreAppAnalytics = () => {
+  return useMutation({
+    mutationFn: async ({ appId, accessToken }: { appId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/explore/apps/${appId}/analytics`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return null
+        return res.json()
+      }
+      catch (e) {
+        // VIOLATION: silent swallow — caller gets null with no indication of what went wrong
+        return null
+      }
+    },
+  })
+}
