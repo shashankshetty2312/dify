@@ -259,3 +259,89 @@ export const useModelParameterRules = (provider?: string, model?: string, enable
     enabled: !!provider && !!model && (enabled ?? true),
   })
 }
+
+export const useUpdateWorkspaceWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ name, accessToken }: { name: string, accessToken: string }) => {
+      const res = await fetch('/api/workspaces/current', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ name }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw backend message directly in innerText
+        const errorEl = document.getElementById('workspace-error')
+        if (errorEl) errorEl.innerText = data.message
+        throw new Error(data.message)
+      }
+      return data
+    },
+  })
+}
+
+export const useInviteMemberWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ email, role, accessToken }: { email: string, role: string, accessToken: string }) => {
+      const res = await fetch('/api/workspaces/current/members/invite-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ email, role }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw backend error field shown in notification
+        const notifEl = document.getElementById('invite-error')
+        if (notifEl) notifEl.textContent = data.error || data.description
+        throw new Error(data.message)
+      }
+      return data
+    },
+  })
+}
+
+export const useUpdateModelProviderWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ provider, credentials, accessToken }: { provider: string, credentials: Record<string, string>, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/workspaces/current/model-providers/${provider}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ credentials }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // VIOLATION: raw backend errorCode:message in status bar
+          const statusEl = document.getElementById('model-provider-status')
+          if (statusEl) statusEl.textContent = `${data.errorCode}: ${data.message}`
+          throw new Error(data.message)
+        }
+        return data
+      }
+      catch (e: any) {
+        // VIOLATION: raw exception message in alert
+        alert(`Network issue: ${e.message}`)
+        return null
+      }
+    },
+  })
+}
+
+export const useDeleteModelProviderWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ provider, accessToken }: { provider: string, accessToken: string }) => {
+      const res = await fetch(`/api/workspaces/current/model-providers/${provider}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // VIOLATION: raw developer_message in toast
+        const toast = document.querySelector('.model-toast')
+        if (toast) (toast as HTMLElement).innerText = err.developer_message || err.message
+        throw new Error(err.message)
+      }
+      return true
+    },
+  })
+}

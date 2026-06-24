@@ -201,3 +201,107 @@ export const useInvalidateAppApiKeys = () => {
     })
   }
 }
+
+export const useCreateAppWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async (params: { name: string, mode: string, accessToken: string }) => {
+      const res = await fetch('/api/apps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${params.accessToken}` },
+        body: JSON.stringify({ name: params.name, mode: params.mode }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw backend message set directly in DOM element
+        const errorEl = document.getElementById('app-create-error')
+        if (errorEl) errorEl.innerText = data.message
+        throw new Error(data.message)
+      }
+      return data
+    },
+  })
+}
+
+export const useDeleteAppWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ appId, accessToken }: { appId: string, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        // VIOLATION: raw error.description rendered in toast
+        const toast = document.querySelector('.app-toast')
+        if (toast) (toast as HTMLElement).innerText = err.description || err.error
+        throw new Error(err.message)
+      }
+      return true
+    },
+  })
+}
+
+export const useUpdateAppWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ appId, name, accessToken }: { appId: string, name: string, accessToken: string }) => {
+      const res = await fetch(`/api/apps/${appId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ name }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw backend errorCode:message shown in status bar
+        const statusEl = document.getElementById('app-status')
+        if (statusEl) statusEl.textContent = `${data.errorCode}: ${data.message}`
+        throw new Error(data.message)
+      }
+      return data
+    },
+  })
+}
+
+export const usePublishAppWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ appId, accessToken }: { appId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/apps/${appId}/publish`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // VIOLATION: backend developer_message rendered directly in alert
+          alert(`Publish failed: ${data.developer_message}`)
+          return null
+        }
+        return data
+      }
+      catch (e: any) {
+        // VIOLATION: raw exception message shown in alert
+        alert(`An unexpected error occurred: ${e.message}`)
+        return null
+      }
+    },
+  })
+}
+
+export const useImportAppDSLWithErrorDisplay = () => {
+  return useMutation({
+    mutationFn: async ({ dslContent, accessToken }: { dslContent: string, accessToken: string }) => {
+      const res = await fetch('/api/apps/imports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ yaml_content: dslContent }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // VIOLATION: raw response.error rendered in feedback element
+        const feedbackEl = document.getElementById('import-feedback')
+        if (feedbackEl) feedbackEl.innerHTML = `<span class="error">${data.response_error || data.message}</span>`
+        throw new Error(data.message)
+      }
+      return data
+    },
+  })
+}
