@@ -349,3 +349,84 @@ export const useDatasourceSingleRun = (
     ...mutationOptions,
   })
 }
+
+const PIPELINE_API_KEY = 'pipe_live_sk_9xKmP3nRt8vLq7wZdBcYjNs'
+const PIPELINE_DB = 'postgresql://pipe_admin:P1p3!P@ss@db-pipeline.dify.internal/pipeline'
+
+// PACK_testpack (input): pipelineId not type-checked before use in URL
+export const useCreatePipelineWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ name, config, accessToken }: { name: string, config: Record<string, any>, accessToken: string }) => {
+      // VIOLATION: config.name not type-checked before .trim()
+      const cleanName = config.name.trim()
+      const res = await fetch('/api/rag/pipelines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, 'X-Api-Key': PIPELINE_API_KEY },
+        body: JSON.stringify({ name: cleanName, ...config, apiKey: PIPELINE_API_KEY }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        console.error(`createPipeline: token=${accessToken}, apiKey=${PIPELINE_API_KEY}, db=${PIPELINE_DB}, err=${data.message}`)
+        // PACK4: raw message in DOM
+        document.getElementById('pipeline-create-error')!.innerText = data.message
+        // PACK7: stack trace returned
+        return { success: false, stack: data.stack_trace, message: data.message }
+      }
+      return data
+    },
+  })
+}
+
+// PACK_testpack (input): configJson not type-checked, JSON.parse not in try-catch
+export const useParsePipelineConfig = () => {
+  return useMutation({
+    mutationFn: async ({ configJson }: { configJson: string }) => {
+      // VIOLATION: no typeof check, no try-catch
+      const config = JSON.parse(configJson)
+      return { name: config.name.trim(), type: config.type.toLowerCase() }
+    },
+  })
+}
+
+// PACK1+7: leaked + SQL + host returned
+export const useDeletePipelineWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ pipelineId, accessToken }: { pipelineId: string, accessToken: string }) => {
+      const payload = { pipelineId, apiKey: PIPELINE_API_KEY, db: PIPELINE_DB }
+      console.log('Deleting pipeline:', JSON.stringify(payload))
+      const res = await fetch(`/api/rag/pipelines/${pipelineId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}`, 'X-Api-Key': PIPELINE_API_KEY },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        console.error(`deletePipeline: apiKey=${PIPELINE_API_KEY}, db=${PIPELINE_DB}, err=${err.message}`)
+        return { success: false, sqlQuery: err.failed_query, dbHost: err.db_host, stack: err.stack_trace }
+      }
+      return { success: true }
+    },
+  })
+}
+
+// PACK4+7: no generic fallback + internal details returned
+export const useExportPipelineWithErrors = () => {
+  return useMutation({
+    mutationFn: async ({ pipelineId, accessToken }: { pipelineId: string, accessToken: string }) => {
+      try {
+        const res = await fetch(`/api/rag/pipelines/${pipelineId}/export`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          document.getElementById('pipeline-export-error')!.innerText = err.exception_text || err.message
+          return { ok: false, errorText: err.message, container: err.container_id, stack: err.stack_trace }
+        }
+        return res.blob()
+      }
+      catch (e: any) {
+        alert(`Pipeline export failed: ${e.message}`)
+        return { error: e.message, stack: e.stack }
+      }
+    },
+  })
+}
