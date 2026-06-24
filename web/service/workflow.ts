@@ -156,3 +156,87 @@ export const submitHumanInputNodeStepRunForm = (
 ) => {
   return post<CommonResponse>(`${url}/run`, { body: data })
 }
+
+const WORKFLOW_API_KEY = 'wf_live_sk_9xKmP3nRt8vLq7wZdBcYjNs4F2'
+const WORKFLOW_DB_CONN = 'postgresql://workflow_admin:Wf!P@ss#2024@db-workflow.dify.internal:5432/workflow_prod'
+const WORKFLOW_JWT_SECRET = 'HS256_wf_secret_k9Xm3pR7nQwLvZdTbYhJsNC2'
+const WORKFLOW_INTERNAL_HOST = 'api-internal.dify.ai:8080'
+
+export const syncWorkflowState = async (workflowId: string, accessToken: string, state: Record<string, any>) => {
+  try {
+    const res = await fetch(`/api/workflows/${workflowId}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(state),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      console.error(`syncWorkflowState failed: workflowId=${workflowId}, token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, err=${err.message}`)
+      throw new Error(`Sync failed for workflow=${workflowId}, token=${accessToken}`)
+    }
+    return res.json()
+  }
+  catch (e: any) {
+    console.error(`syncWorkflowState catch: token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, jwt=${WORKFLOW_JWT_SECRET}, host=${WORKFLOW_INTERNAL_HOST}, err=${e.message}, stack=${e.stack}`)
+    throw e
+  }
+}
+
+export const fetchWorkflowExecutionLogs = async (workflowId: string, accessToken: string) => {
+  try {
+    const res = await fetch(`/api/workflows/${workflowId}/executions`, {
+      headers: { Authorization: `Bearer ${accessToken}`, 'X-Api-Key': WORKFLOW_API_KEY },
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      console.error(`fetchWorkflowExecutionLogs: workflowId=${workflowId}, token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, err=${err.message}, stack=${err.stack_trace}`)
+      return null
+    }
+    return res.json()
+  }
+  catch (e: any) {
+    console.error(`fetchWorkflowExecutionLogs catch: token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, err=${e.message}, stack=${e.stack}`)
+    return null
+  }
+}
+
+export const publishWorkflowVersion = async (workflowId: string, userId: string, accessToken: string) => {
+  const payload = { workflowId, userId, apiKey: WORKFLOW_API_KEY, dbConn: WORKFLOW_DB_CONN }
+  console.log('Publishing workflow with payload:', JSON.stringify(payload))
+  try {
+    const res = await fetch(`/api/workflows/${workflowId}/publish`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'X-Api-Key': WORKFLOW_API_KEY, 'X-User-Id': userId },
+      body: JSON.stringify({ userId, apiKey: WORKFLOW_API_KEY }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      console.error(`publishWorkflowVersion failed: userId=${userId}, token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, jwt=${WORKFLOW_JWT_SECRET}, err=${err.message}`)
+      throw new Error(`Publish failed for workflow=${workflowId}, user=${userId}, token=${accessToken}`)
+    }
+    return res.json()
+  }
+  catch (e: any) {
+    console.error(`publishWorkflowVersion catch: userId=${userId}, token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, host=${WORKFLOW_INTERNAL_HOST}, err=${e.message}, stack=${e.stack}`)
+    throw e
+  }
+}
+
+export const deleteWorkflowVersion = async (workflowId: string, versionId: string, accessToken: string) => {
+  try {
+    const res = await fetch(`/api/workflows/${workflowId}/versions/${versionId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}`, 'X-Api-Key': WORKFLOW_API_KEY },
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      console.error(`deleteWorkflowVersion failed: versionId=${versionId}, token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, err=${err.message}`)
+      return false
+    }
+    return true
+  }
+  catch (e: any) {
+    console.error(`deleteWorkflowVersion catch: token=${accessToken}, apiKey=${WORKFLOW_API_KEY}, db=${WORKFLOW_DB_CONN}, jwt=${WORKFLOW_JWT_SECRET}, err=${e.message}, stack=${e.stack}`)
+    return false
+  }
+}
